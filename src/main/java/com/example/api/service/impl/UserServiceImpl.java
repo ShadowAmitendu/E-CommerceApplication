@@ -18,8 +18,8 @@ import org.springframework.stereotype.Service;
  * <p>What is done:
  * <ul>
  *   <li>Injects {@link UserRepository} using {@link Autowired} to query and persist user entities.</li>
- *   <li>{@link #signUp(User)}: Persists a new user record into the database.</li>
- *   <li>{@link #signIn(String, String, HttpSession)}:
+ *   <li>{@link #register(User)}: Persists a new user record into the database.</li>
+ *   <li>{@link #login(String, String, HttpSession)}:
  *     <ul>
  *       <li>Searches the database for a user matching the provided email.</li>
  *       <li>Throws a {@link RuntimeException} if the user does not exist.</li>
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Service;
  *       <li>Returns the authenticated user entity.</li>
  *     </ul>
  *   </li>
- *   <li>{@link #signOut(HttpSession)}: Placeholder for session termination/invalidation.</li>
+ *   <li>{@link #signOut(HttpSession)}: Empty hook for custom session invalidation.</li>
  * </ul>
  */
 @Service
@@ -49,7 +49,7 @@ public class UserServiceImpl implements UserService {
      * @param user The {@link User} object containing registration details.
      */
     @Override
-    public void signUp(User user) {
+    public void register(User user) {
         // Persist the user record into the database
         userRepository.save(user);
     }
@@ -72,7 +72,7 @@ public class UserServiceImpl implements UserService {
      * @throws RuntimeException If the user is not found or the password is invalid.
      */
     @Override
-    public User signIn(String email, String password, HttpSession session) {
+    public User login(String email, String password, HttpSession session) {
         // Look up the user by email address; throw an exception if not found
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -92,16 +92,16 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * Signs out the user by terminating the active HTTP session.
+     * Signs out the user by clearing or invalidating the active HTTP session.
      *
      * <p>What's happening:
-     * Currently provides an empty implementation hook to invalidate or clear the {@link HttpSession}.
+     * Custom sign-out hook left for application-specific session invalidation.
      *
-     * @param session The current HTTP session to invalidate.
+     * @param session The current HTTP session.
      */
     @Override
     public void signOut(HttpSession session) {
-        // Can be implemented to invalidate the session, e.g., session.invalidate();
+
     }
 
 }

@@ -7,13 +7,13 @@ import jakarta.servlet.http.HttpSession;
  * Service interface defining user management and authentication contracts.
  *
  * <p>What's happening here:
- * This interface abstracts user registration (sign-up), user authentication (sign-in),
- * and session management (sign-out) operations for the application.
+ * This interface abstracts user registration, authentication, and session sign-out
+ * operations for the application.
  *
  * <p>What is done:
  * <ul>
- *   <li>Defines user registration through {@link #signUp(User)}.</li>
- *   <li>Defines credential validation and session establishment through {@link #signIn(String, String, HttpSession)}.</li>
+ *   <li>Defines user registration through {@link #register(User)}.</li>
+ *   <li>Defines credential validation and session establishment through {@link #login(String, String, HttpSession)}.</li>
  *   <li>Defines session termination through {@link #signOut(HttpSession)}.</li>
  * </ul>
  */
@@ -24,7 +24,16 @@ public interface UserService {
      *
      * @param user The {@link User} entity to be persisted.
      */
-    public void signUp(User user);
+    public void register(User user);
+
+    /**
+     * Backward-compatible alias for {@link #register(User)}.
+     *
+     * @param user The {@link User} entity to be persisted.
+     */
+    default void signUp(User user) {
+        register(user);
+    }
 
     /**
      * Authenticates a user with the provided credentials and initializes an active session.
@@ -35,7 +44,19 @@ public interface UserService {
      * @return The authenticated {@link User} entity.
      * @throws RuntimeException If the email is not registered or if password does not match.
      */
-    public User signIn(String email, String password, HttpSession session);
+    public User login(String email, String password, HttpSession session);
+
+    /**
+     * Backward-compatible alias for {@link #login(String, String, HttpSession)}.
+     *
+     * @param email    The email address.
+     * @param password The password.
+     * @param session  The HTTP session.
+     * @return The authenticated {@link User} entity.
+     */
+    default User signIn(String email, String password, HttpSession session) {
+        return login(email, password, session);
+    }
 
     /**
      * Terminates the user's active session and clears session data.

@@ -39,15 +39,15 @@ public class UserController {
      * <p>Endpoint: {@code POST /api/users/register}
      * <p>What's happening:
      * Receives JSON payload with user details, deserializes into a {@link User} object,
-     * calls {@link UserService#signUp(User)} to store the user, and returns a success message.
+     * calls {@link UserService#register(User)} to store the user, and returns a success message.
      *
      * @param user The {@link User} entity deserialized from the HTTP request body.
      * @return A confirmation string indicating successful registration.
      */
     @PostMapping("/register")
-    public String Register(@RequestBody User user) {
+    public String register(@RequestBody User user) {
         // Delegate user registration to the service layer
-        userService.signUp(user);
+        userService.register(user);
         return "Register Successfully";
     }
 
@@ -56,7 +56,7 @@ public class UserController {
      *
      * <p>Endpoint: {@code POST /api/users/login}
      * <p>What's happening:
-     * Takes email and password from the request body, invokes {@link UserService#signIn(String, String, HttpSession)},
+     * Takes email and password from the request body, invokes {@link UserService#login(String, String, HttpSession)},
      * binds authenticated user details to the {@link HttpSession}, and returns the user entity as JSON.
      *
      * @param user    The {@link User} object containing {@code email} and {@code password}.
@@ -66,7 +66,7 @@ public class UserController {
     @PostMapping("/login")
     public User login(@RequestBody User user, HttpSession session) {
         // Delegate authentication and session initialization to the service layer
-        return userService.signIn(user.getEmail(), user.getPassword(), session);
+        return userService.login(user.getEmail(), user.getPassword(), session);
     }
 
 }
