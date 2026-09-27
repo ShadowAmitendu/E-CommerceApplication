@@ -3,6 +3,8 @@ package com.example.api.entity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * Entity representing a Product in the e-commerce inventory database.
@@ -25,23 +27,31 @@ public class Product {
     /**
      * Unique identifier for the product (Primary Key).
      * Typically assigned as a String identifier or SKU code.
+     * Validated to ensure a non-blank value is provided.
      */
     @Id
+    @NotBlank(message = "Product ID is required")
     private String id;
 
     /**
      * Name or title describing the product.
+     * Validated to ensure a non-blank value is provided.
      */
+    @NotBlank(message = "Product name is required")
     private String name;
 
     /**
      * Available stock quantity in the inventory.
+     * Validated to ensure a non-negative value.
      */
+    @Min(value = 0, message = "Quantity must be zero or greater")
     private int quantity;
 
     /**
      * Unit selling price of the product.
+     * Validated to ensure a non-negative value.
      */
+    @Min(value = 0, message = "Price must be zero or greater")
     private double price;
 
     /**

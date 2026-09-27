@@ -1,10 +1,11 @@
 package com.example.api.service.impl;
 
 import com.example.api.entity.User;
+import com.example.api.exception.InvalidCredentialsException;
+import com.example.api.exception.ResourceNotFoundException;
 import com.example.api.repository.UserRepository;
 import com.example.api.service.UserService;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,28 +18,38 @@ import org.springframework.stereotype.Service;
  *
  * <p>What is done:
  * <ul>
- *   <li>Injects {@link UserRepository} using {@link Autowired} to query and persist user entities.</li>
+ *   <li>Injects {@link UserRepository} via constructor for immutability and testability.</li>
  *   <li>{@link #register(User)}: Persists a new user record into the database.</li>
  *   <li>{@link #login(String, String, HttpSession)}:
  *     <ul>
  *       <li>Searches the database for a user matching the provided email.</li>
- *       <li>Throws a {@link RuntimeException} if the user does not exist.</li>
+ *       <li>Throws a {@link ResourceNotFoundException} if the user does not exist.</li>
  *       <li>Validates that the entered password matches the stored password.</li>
- *       <li>Stores user details (email, name, role) in the {@link HttpSession} upon successful login.</li>
+ *       <li>Throws an {@link InvalidCredentialsException} if passwords do not match.</li>
+ *       <li>Stores user details (userId, userEmail, userName, userRole) in the {@link HttpSession} upon successful login.</li>
  *       <li>Returns the authenticated user entity.</li>
  *     </ul>
  *   </li>
- *   <li>{@link #signOut(HttpSession)}: Empty hook for custom session invalidation.</li>
+ *   <li>{@link #logout(HttpSession)}: Clears session attributes and invalidates the active HTTP session.</li>
  * </ul>
  */
 @Service
 public class UserServiceImpl implements UserService {
 
     /**
-     * Injected repository bean for querying and persisting {@link User} entities.
+     * Repository bean for querying and persisting {@link User} entities.
+     * Injected via constructor for immutability and testability.
      */
-    @Autowired
-    UserRepository userRepository;
+    private final UserRepository userRepository;
+
+    /**
+     * Constructs a UserServiceImpl with the required repository dependency.
+     *
+     * @param userRepository The {@link UserRepository} for database operations on user records.
+     */
+    public UserServiceImpl(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     /**
      * Registers a new user account in the system.
@@ -59,49 +70,65 @@ public class UserServiceImpl implements UserService {
      *
      * <p>What's happening:
      * 1. Looks up the user by email using {@link UserRepository#findByEmail(String)}.
-     * 2. Throws an exception if no matching user record is found.
+     * 2. Throws a {@link ResourceNotFoundException} if no matching user record is found.
      * 3. Compares the stored password with the supplied password.
-     * 4. Throws an exception if the passwords do not match.
-     * 5. Populates session attributes: "userEmail", "userName", and "userRole".
+     * 4. Throws an {@link InvalidCredentialsException} if the passwords do not match.
+     * 5. Populates session attributes: "userId", "userEmail", "userName", and "userRole".
      * 6. Returns the logged-in user object.
      *
-     * @param email    The email address entered by the user.
-     * @param password The plaintext password to verify.
-     * @param session  The current HTTP session for storing session attributes.
+     * @param email       The email address entered by the user.
+     * @param password    The plaintext password to verify.
+     * @param httpSession The current HTTP session for storing session attributes.
      * @return The authenticated {@link User} entity.
-     * @throws RuntimeException If the user is not found or the password is invalid.
+     * @throws ResourceNotFoundException   If the user is not found by email.
+     * @throws InvalidCredentialsException If the password is invalid.
      */
     @Override
-    public User login(String email, String password, HttpSession session) {
-        // Look up the user by email address; throw an exception if not found
+    public User login(String email, String password, HttpSession httpSession) {
+        // Look up user by email or throw exception if not found
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-        // Verify that the supplied password matches the persisted password
+        // Verify that the supplied password matches the stored password
         if (!user.getPassword().equals(password)) {
-            throw new RuntimeException("Invalid password");
+            throw new InvalidCredentialsException("Invalid password");
         }
 
-        // Store user identity and role information in HTTP session state
-        session.setAttribute("userEmail", user.getEmail());
-        session.setAttribute("userName", user.getName());
-        session.setAttribute("userRole", user.getRole());
+        // Store user identity, name, and role information in HTTP session state
+        httpSession.setAttribute("userId", user.getId());
+        httpSession.setAttribute("userEmail", user.getEmail());
+        httpSession.setAttribute("userName", user.getName());
+        httpSession.setAttribute("userRole", user.getRole());
 
         // Return the authenticated user object
         return user;
     }
 
     /**
-     * Signs out the user by clearing or invalidating the active HTTP session.
+     * Signs out the user by clearing attributes and invalidating the active HTTP session.
      *
      * <p>What's happening:
-     * Custom sign-out hook left for application-specific session invalidation.
+     * Unbinds user-specific identity attributes ("userId", "userEmail", "userName", "userRole")
+     * and invalidates the session to prevent session fixation and clear server resources.
      *
-     * @param session The current HTTP session.
+     * @param httpSession The current HTTP session to invalidate.
      */
     @Override
-    public void signOut(HttpSession session) {
+    public void logout(HttpSession httpSession) {
+        if (httpSession != null) {
+            // Remove all stored user attributes from the session
+            httpSession.removeAttribute("userId");
+            httpSession.removeAttribute("userEmail");
+            httpSession.removeAttribute("userName");
+            httpSession.removeAttribute("userRole");
 
+            // Invalidate the session
+            try {
+                httpSession.invalidate();
+            } catch (IllegalStateException ignored) {
+                // Session may already have been invalidated
+            }
+        }
     }
 
 }

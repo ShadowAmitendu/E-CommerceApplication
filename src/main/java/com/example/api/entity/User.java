@@ -1,6 +1,8 @@
 package com.example.api.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * Entity representing a User in the e-commerce application.
@@ -28,17 +30,22 @@ public class User {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Integer id;
 
     /**
      * Full name of the user.
+     * Validated to ensure a non-blank value is provided during registration.
      */
+    @NotBlank(message = "User name is required")
     private String name;
 
     /**
      * Email address used for authentication and communications.
      * Must be unique across all user records and cannot be null.
+     * Validated for non-blank value and well-formed email format.
      */
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be a valid email address")
     @Column(unique = true, nullable = false)
     private String email;
 
@@ -51,12 +58,16 @@ public class User {
 
     /**
      * User's account password.
+     * Validated to ensure a non-blank value is provided during registration.
      */
+    @NotBlank(message = "Password is required")
     private String password;
 
     /**
      * Authorization role assigned to the user (e.g., "ADMIN", "USER", "CUSTOMER").
+     * Validated to ensure a non-blank value is provided during registration.
      */
+    @NotBlank(message = "Role is required")
     private String role;
 
     /**
@@ -64,7 +75,7 @@ public class User {
      *
      * @return The auto-generated user ID.
      */
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
@@ -73,7 +84,7 @@ public class User {
      *
      * @param id The user ID to assign.
      */
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
