@@ -33,7 +33,7 @@ public interface UserService {
      * @param password The plaintext password provided during login.
      * @param session  The current HTTP session object to store logged-in user state.
      * @return The authenticated {@link User} entity.
-     * @throws com.example.api.exception.ResourceNotFoundException If the email is not registered.
+     * @throws com.example.api.exception.ResourceNotFoundException   If the email is not registered.
      * @throws com.example.api.exception.InvalidCredentialsException If the password does not match.
      */
     public User login(String email, String password, HttpSession session);
