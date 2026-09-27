@@ -21,7 +21,7 @@ import jakarta.validation.constraints.NotBlank;
  * </ul>
  */
 @Entity
-@Table(name = "product")
+@Table(name = "products")
 public class Product {
 
     /**

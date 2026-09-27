@@ -27,7 +27,6 @@ public class EcomApplication {
      * @param args Command-line arguments passed to the application at launch.
      */
     public static void main(String[] args) {
-        // Launches the Spring Boot application using reflection and initializes all beans
         SpringApplication.run(EcomApplication.class, args);
     }
 
