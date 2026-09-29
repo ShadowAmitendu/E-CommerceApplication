@@ -32,4 +32,12 @@ public interface UserRepository extends JpaRepository<User, Integer> {
      * @return An {@link Optional} containing the matched {@link User}, or empty if no user exists with this email.
      */
     public Optional<User> findByEmail(String email);
+
+    /**
+     * Retrieves a user record matching the given phone number.
+     *
+     * @param phone The phone number to look up.
+     * @return An Optional containing the matched User, or empty if none exists.
+     */
+    public Optional<User> findByPhone(String phone);
 }

@@ -14,6 +14,7 @@ Welcome to the **E-Commerce Application** backend documentation! This guide is s
    - [Product Catalog (`/api/products`)](#52-product-catalog-endpoints)
    - [Shopping Cart (`/api/cart`)](#53-shopping-cart-endpoints)
    - [Orders & Transactions (`/api/orders`)](#54-order-management-endpoints)
+   - [Customer Addresses (`/api/addresses`)](#55-address-management-endpoints)
 6. [Ready-to-Use Frontend Code Snippets (Fetch & Axios)](#6-ready-to-use-frontend-code-snippets)
 7. [End-to-End User Workflows](#7-end-to-end-user-workflows)
 
@@ -39,9 +40,11 @@ This application is a full-featured e-commerce backend built with **Java 17**, *
 
 ### Database Entity Relationships
 ```
-[User] (1) ───< (Many) [CartItem] >─── (Many) [Product]
-  │                                               │
-  └─────────────< (Many) [Order]    >─────────────┘
+              ┌───< (Many) [Address]
+              │
+[User] (1) ───┼───< (Many) [CartItem] >─── (Many) [Product]
+              │                                      │
+              └─────────< (Many) [Order]    >────────┘
 ```
 
 ---
@@ -68,7 +71,7 @@ The backend uses standard Spring `HttpSession` cookie-based authentication.
    - In `fetch()`: pass `{ credentials: 'include' }`
    - In `axios`: set `axios.defaults.withCredentials = true;`
 
-> ⚠️ **Important:** If `credentials: 'include'` is omitted in your frontend calls, the browser will strip the cookie and all protected endpoints (`/api/users/me`, `/api/cart`, `/api/orders`) will return `401 Unauthorized`.
+> ⚠️ **Important:** If `credentials: 'include'` is omitted in your frontend calls, the browser will strip the cookie and all protected endpoints (`/api/users/me`, `/api/cart`, `/api/orders`, `/api/addresses`) will return `401 Unauthorized`.
 
 ---
 
@@ -79,9 +82,11 @@ Users are assigned one of two roles during registration:
   - Can view products
   - Can manage their own shopping cart
   - Can place orders and view/cancel their own orders
-  - Can view their profile (`/api/users/me`)
+  - Can view and update their profile (`GET|PUT /api/users/me`)
+  - Can manage multiple delivery addresses with a default address (`/api/addresses`)
 - **`ADMIN`**:
   - Full platform privileges
+  - Can view all registered users platform-wide (`GET /api/users`)
   - Can create, update, and delete products in the catalog
   - Can view all orders placed across all users on the platform
   - Can cancel/restock any order
@@ -183,6 +188,81 @@ Checks if an active session exists and returns the current user profile.
     "error": "Unauthorized",
     "message": "Login required to view profile",
     "timestamp": "2026-09-28T21:30:00"
+  }
+  ```
+
+#### Update Profile
+Updates profile details (name, phone, password) for the currently logged-in user.
+- **URL:** `PUT /api/users/me` *(alias: `/api/users/profile`)*
+- **Access:** Authenticated
+- **Headers:** `Content-Type: application/json`
+- **Request Body:**
+  ```json
+  {
+    "name": "Jane Smith",
+    "phone": "9876543210",
+    "currentPassword": "Password123",
+    "newPassword": "NewPassword456"
+  }
+  ```
+  *(All fields are optional. `currentPassword` is only required when changing `newPassword`)*
+- **Response:** `200 OK`
+  ```json
+  {
+    "id": 1,
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "phone": "9876543210",
+    "role": "USER"
+  }
+  ```
+
+#### Get All Users (Admin Only)
+Retrieves all registered users across the platform. Accessible only by accounts with the `ADMIN` role.
+- **URL:** `GET /api/users` *(aliases: `/api/users/all`, `/api/users/view`)*
+- **Access:** Admin Only (`userRole == ADMIN`)
+- **Response `200 OK`:**
+  ```json
+  [
+    {
+      "id": 1,
+      "name": "Jane Smith",
+      "email": "jane@example.com",
+      "phone": "9876543210",
+      "role": "USER"
+    },
+    {
+      "id": 2,
+      "name": "System Admin",
+      "email": "admin@example.com",
+      "phone": "1234567890",
+      "role": "ADMIN"
+    }
+  ]
+  ```
+- **Response `403 Forbidden` (If non-admin):**
+  ```json
+  {
+    "status": 403,
+    "error": "Forbidden",
+    "message": "Admin access only",
+    "timestamp": "2026-09-28T21:30:00"
+  }
+  ```
+
+#### Get User by ID
+Retrieves details of an individual user by primary key ID.
+- **URL:** `GET /api/users/{id}`
+- **Path Variable:** `id` (e.g. `1`)
+- **Access:** Authenticated (Owner of the account or Admin)
+- **Response:** `200 OK`
+  ```json
+  {
+    "id": 1,
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "phone": "9876543210",
+    "role": "USER"
   }
   ```
 
@@ -439,6 +519,115 @@ Cancels an order and **automatically refunds the purchased quantity back into pr
 
 ---
 
+### 5.5 Address Management Endpoints
+
+Customers can store multiple delivery addresses. One address is designated as the **default address** (`isDefault: true`).
+
+**Business Rules:**
+- The first address created by a customer automatically becomes the default address.
+- When an address is marked as default, any other existing default address for that user is automatically switched to non-default (`isDefault: false`).
+- If a default address is deleted, the earliest remaining address is promoted to default automatically.
+
+#### Get All Addresses
+Retrieves all shipping addresses for the logged-in customer, ordered with the default address first.
+- **URL:** `GET /api/addresses` *(alias: `/api/addresses/view`)*
+- **Access:** Authenticated
+- **Response:** `200 OK`
+  ```json
+  [
+    {
+      "id": 1,
+      "userId": 1,
+      "fullName": "Jane Doe",
+      "phone": "9876543210",
+      "street": "123 Elm Street, Apt 4B",
+      "city": "Springfield",
+      "state": "IL",
+      "postalCode": "62701",
+      "country": "USA",
+      "default": true
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "fullName": "Jane Doe (Office)",
+      "phone": "9876543210",
+      "street": "789 Corporate Plaza, Suite 100",
+      "city": "Springfield",
+      "state": "IL",
+      "postalCode": "62704",
+      "country": "USA",
+      "default": false
+    }
+  ]
+  ```
+
+#### Add New Address
+Creates a new address record. If `isDefault` is `true` or this is the user's first address, it becomes default.
+- **URL:** `POST /api/addresses` *(alias: `/api/addresses/add`)*
+- **Access:** Authenticated
+- **Headers:** `Content-Type: application/json`
+- **Request Body:**
+  ```json
+  {
+    "fullName": "Jane Doe",
+    "phone": "9876543210",
+    "street": "123 Elm Street, Apt 4B",
+    "city": "Springfield",
+    "state": "IL",
+    "postalCode": "62701",
+    "country": "USA",
+    "isDefault": true
+  }
+  ```
+- **Response:** `201 Created` (Returns created `AddressResponse` object)
+
+#### Get Single Address by ID
+Retrieves details of a specific address.
+- **URL:** `GET /api/addresses/{id}`
+- **Path Variable:** `id` (e.g. `1`)
+- **Access:** Authenticated (Owner of address or Admin)
+- **Response:** `200 OK`
+
+#### Update Address
+Modifies fields of an existing address.
+- **URL:** `PUT /api/addresses/{id}` *(alias: `/api/addresses/update/{id}`)*
+- **Path Variable:** `id`
+- **Access:** Authenticated (Owner or Admin)
+- **Request Body:**
+  ```json
+  {
+    "fullName": "Jane Doe",
+    "phone": "9876543210",
+    "street": "123 Elm Street, Suite 5C",
+    "city": "Springfield",
+    "state": "IL",
+    "postalCode": "62701",
+    "country": "USA",
+    "isDefault": false
+  }
+  ```
+- **Response:** `200 OK`
+
+#### Set Default Address
+Promotes an address to be the primary default address for the user, demoting any previously default address.
+- **URL:** `PATCH /api/addresses/{id}/default` *(or `PUT /api/addresses/{id}/default`)*
+- **Path Variable:** `id` (e.g. `2`)
+- **Access:** Authenticated (Owner or Admin)
+- **Response:** `200 OK` (Returns updated `AddressResponse` object with `default: true`)
+
+#### Delete Address
+Deletes an address record. If this address was default, the next remaining address becomes default.
+- **URL:** `DELETE /api/addresses/{id}` *(alias: `/api/addresses/delete/{id}`)*
+- **Path Variable:** `id`
+- **Access:** Authenticated (Owner or Admin)
+- **Response:** `200 OK`
+  ```text
+  Address deleted successfully!
+  ```
+
+---
+
 ## 6. Ready-to-Use Frontend Code Snippets
 
 ### Setup A: Using Vanilla JavaScript `fetch`
@@ -480,10 +669,20 @@ async function apiRequest(endpoint, options = {}) {
 
 // Example API calls:
 export const api = {
-  // Auth
+  // Auth & Profile
   login: (email, password) => apiRequest('/api/users/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   getProfile: () => apiRequest('/api/users/me', { method: 'GET' }),
+  updateProfile: (profileData) => apiRequest('/api/users/me', { method: 'PUT', body: JSON.stringify(profileData) }),
+  getAllUsers: () => apiRequest('/api/users', { method: 'GET' }), // Admin only
   logout: () => apiRequest('/api/users/logout', { method: 'POST' }),
+
+  // Addresses
+  getAddresses: () => apiRequest('/api/addresses', { method: 'GET' }),
+  getAddressById: (id) => apiRequest(`/api/addresses/${id}`, { method: 'GET' }),
+  addAddress: (addressData) => apiRequest('/api/addresses', { method: 'POST', body: JSON.stringify(addressData) }),
+  updateAddress: (id, addressData) => apiRequest(`/api/addresses/${id}`, { method: 'PUT', body: JSON.stringify(addressData) }),
+  setDefaultAddress: (id) => apiRequest(`/api/addresses/${id}/default`, { method: 'PATCH' }),
+  deleteAddress: (id) => apiRequest(`/api/addresses/${id}`, { method: 'DELETE' }),
 
   // Products
   getProducts: () => apiRequest('/api/products'),

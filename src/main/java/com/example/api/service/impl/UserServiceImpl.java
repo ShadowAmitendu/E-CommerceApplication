@@ -1,12 +1,17 @@
 package com.example.api.service.impl;
 
+import com.example.api.dto.UpdateProfileRequest;
 import com.example.api.entity.User;
+import com.example.api.exception.AuthenticationRequiredException;
 import com.example.api.exception.InvalidCredentialsException;
 import com.example.api.exception.ResourceNotFoundException;
+import com.example.api.exception.UnauthorizedAccessException;
 import com.example.api.repository.UserRepository;
 import com.example.api.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * Service implementation providing user registration, authentication, and session handling.
@@ -129,6 +134,112 @@ public class UserServiceImpl implements UserService {
                 // Session may already have been invalidated
             }
         }
+    }
+
+    /**
+     * Updates profile details of the currently logged-in user.
+     *
+     * @param request     The profile fields to update.
+     * @param httpSession The active HTTP session.
+     * @return The updated User entity.
+     */
+    @Override
+    public User updateProfile(UpdateProfileRequest request, HttpSession httpSession) {
+        if (httpSession == null) {
+            throw new AuthenticationRequiredException("Login required to update profile");
+        }
+
+        Object sessionUserId = httpSession.getAttribute("userId");
+        String userEmail = (String) httpSession.getAttribute("userEmail");
+
+        if (sessionUserId == null && userEmail == null) {
+            throw new AuthenticationRequiredException("Login required to update profile");
+        }
+
+        User user;
+        if (sessionUserId instanceof Number) {
+            user = userRepository.findById(((Number) sessionUserId).intValue())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + sessionUserId));
+        } else {
+            user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+        }
+
+        if (request.getName() != null && !request.getName().trim().isEmpty()) {
+            user.setName(request.getName().trim());
+        }
+
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            String newPhone = request.getPhone().trim();
+            if (!newPhone.equals(user.getPhone())) {
+                userRepository.findByPhone(newPhone).ifPresent(existing -> {
+                    if (!existing.getId().equals(user.getId())) {
+                        throw new IllegalArgumentException("Phone number is already registered to another account: " + newPhone);
+                    }
+                });
+                user.setPhone(newPhone);
+            }
+        }
+
+        if (request.getNewPassword() != null && !request.getNewPassword().trim().isEmpty()) {
+            if (request.getCurrentPassword() == null || !request.getCurrentPassword().equals(user.getPassword())) {
+                throw new InvalidCredentialsException("Current password does not match");
+            }
+            user.setPassword(request.getNewPassword());
+        }
+
+        User updatedUser = userRepository.save(user);
+
+        // Keep session attribute synchronized
+        httpSession.setAttribute("userName", updatedUser.getName());
+
+        return updatedUser;
+    }
+
+    /**
+     * Retrieves all registered users in the system. Requires administrator privileges.
+     *
+     * @param httpSession The active HTTP session to verify administrator authority.
+     * @return List of all User entities.
+     */
+    @Override
+    public List<User> getAllUsers(HttpSession httpSession) {
+        if (httpSession == null) {
+            throw new UnauthorizedAccessException("Admin access only");
+        }
+        String userRole = (String) httpSession.getAttribute("userRole");
+        if (userRole == null || !userRole.equalsIgnoreCase("admin")) {
+            throw new UnauthorizedAccessException("Admin access only");
+        }
+        return userRepository.findAll();
+    }
+
+    /**
+     * Retrieves a single user by primary key ID. Requires administrator privileges or account ownership.
+     *
+     * @param id          The user ID to fetch.
+     * @param httpSession The active HTTP session.
+     * @return The matched User entity.
+     */
+    @Override
+    public User getUserById(Integer id, HttpSession httpSession) {
+        if (httpSession == null) {
+            throw new AuthenticationRequiredException("Login required");
+        }
+        Object sessionUserId = httpSession.getAttribute("userId");
+        String userRole = (String) httpSession.getAttribute("userRole");
+        if (sessionUserId == null) {
+            throw new AuthenticationRequiredException("Login required");
+        }
+        boolean isAdmin = userRole != null && userRole.equalsIgnoreCase("admin");
+        int currentUserId = (sessionUserId instanceof Number)
+                ? ((Number) sessionUserId).intValue()
+                : Integer.parseInt(sessionUserId.toString());
+        if (!isAdmin && currentUserId != id) {
+            throw new UnauthorizedAccessException("Unauthorized access to user profile");
+        }
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
 }

@@ -142,6 +142,61 @@ public class UserController {
         profile.put("email", authenticatedUserEmail);
         profile.put("role", authenticatedUserRole);
 
+        if (authenticatedUserId instanceof Number) {
+            try {
+                User user = userService.getUserById(((Number) authenticatedUserId).intValue(), httpSession);
+                profile.put("name", user.getName());
+                profile.put("phone", user.getPhone());
+            } catch (Exception ignored) {
+            }
+        }
+
         return ResponseEntity.ok(profile);
+    }
+
+    /**
+     * Updates profile details for the currently logged-in user.
+     *
+     * <p>Endpoint: {@code PUT /api/users/me} (alias: {@code /profile})
+     * <p>Response: HTTP 200 OK
+     *
+     * @param request     The updated profile fields (name, phone, password).
+     * @param httpSession The active {@link HttpSession}.
+     * @return A {@link ResponseEntity} with HTTP 200 status and updated {@link User} details.
+     */
+    @PutMapping({"/me", "/profile"})
+    public ResponseEntity<User> updateProfile(@RequestBody com.example.api.dto.UpdateProfileRequest request, HttpSession httpSession) {
+        User updatedUser = userService.updateProfile(request, httpSession);
+        return ResponseEntity.ok(updatedUser);
+    }
+
+    /**
+     * Retrieves all registered users in the system. Requires administrator privileges.
+     *
+     * <p>Endpoint: {@code GET /api/users} (aliases: {@code /all}, {@code /view})
+     * <p>Response: HTTP 200 OK
+     *
+     * @param httpSession The active {@link HttpSession} injected by Spring MVC.
+     * @return A {@link ResponseEntity} with HTTP 200 status and list of all users.
+     */
+    @GetMapping({"", "/all", "/view"})
+    public ResponseEntity<java.util.List<User>> getAllUsers(HttpSession httpSession) {
+        return ResponseEntity.ok(userService.getAllUsers(httpSession));
+    }
+
+    /**
+     * Retrieves an individual user by primary key ID.
+     * Accessible by administrators or the account owner.
+     *
+     * <p>Endpoint: {@code GET /api/users/{id}}
+     * <p>Response: HTTP 200 OK
+     *
+     * @param id          The user primary key ID.
+     * @param httpSession The active {@link HttpSession}.
+     * @return A {@link ResponseEntity} with HTTP 200 status and the matched {@link User} entity.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable("id") Integer id, HttpSession httpSession) {
+        return ResponseEntity.ok(userService.getUserById(id, httpSession));
     }
 }
