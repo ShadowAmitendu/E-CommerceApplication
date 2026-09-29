@@ -1,12 +1,16 @@
 package com.example.api.controller;
 
 import com.example.api.entity.User;
+import com.example.api.exception.AuthenticationRequiredException;
 import com.example.api.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * REST Controller exposing API endpoints for user registration, authentication, and session management.
@@ -114,22 +118,30 @@ public class UserController {
      * @return A {@link ResponseEntity} with HTTP 200 status and formatted user details or a login prompt.
      */
     @GetMapping("/me")
-    public ResponseEntity<String> fetchProfile(HttpSession httpSession) {
+    public ResponseEntity<Map<String, Object>> fetchProfile(HttpSession httpSession) {
         // Verify that an active session exists
         if (httpSession == null) {
-            return ResponseEntity.ok("Login to view details!");
+            throw new AuthenticationRequiredException("Login required to view profile");
         }
 
         // Retrieve user attributes stored during authentication
+        Object authenticatedUserId = httpSession.getAttribute("userId");
+        String authenticatedUserEmail = (String) httpSession.getAttribute("userEmail");
         String authenticatedUserName = (String) httpSession.getAttribute("userName");
         String authenticatedUserRole = (String) httpSession.getAttribute("userRole");
 
-        // Return prompt if user is not authenticated
-        if (authenticatedUserRole == null) {
-            return ResponseEntity.ok("Login to view details!");
+        // Enforce user authentication
+        if (authenticatedUserRole == null || authenticatedUserEmail == null) {
+            throw new AuthenticationRequiredException("Login required to view profile");
         }
 
-        // Format and return user identity summary
-        return ResponseEntity.ok("Name is: " + authenticatedUserName + "\n" + "Role is: " + authenticatedUserRole);
+        // Return structured user profile JSON
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("id", authenticatedUserId);
+        profile.put("name", authenticatedUserName);
+        profile.put("email", authenticatedUserEmail);
+        profile.put("role", authenticatedUserRole);
+
+        return ResponseEntity.ok(profile);
     }
 }

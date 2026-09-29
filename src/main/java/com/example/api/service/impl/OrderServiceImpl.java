@@ -132,9 +132,9 @@ public class OrderServiceImpl implements OrderService {
             throw new AuthenticationRequiredException("Please login first");
         }
 
-        // Enforce role authorization (case-insensitive check for user/customer)
-        if (userRole == null || (!userRole.equalsIgnoreCase("USER") && !userRole.equalsIgnoreCase("CUSTOMER"))) {
-            throw new UnauthorizedAccessException("Only users can place orders");
+        // Enforce role authorization (case-insensitive check for user/customer/admin)
+        if (userRole == null || (!userRole.equalsIgnoreCase("USER") && !userRole.equalsIgnoreCase("CUSTOMER") && !userRole.equalsIgnoreCase("ADMIN"))) {
+            throw new UnauthorizedAccessException("Only users and administrators can place orders");
         }
 
         // Validate requested quantity
@@ -172,15 +172,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Retrieves all orders placed by the currently authenticated user.
+     * Retrieves all orders placed by the currently authenticated user, or all orders across all users if admin.
      *
      * <p>What's happening:
-     * 1. Inspects the active {@link HttpSession} to identify the authenticated user (via userId or email).
+     * 1. Inspects the active {@link HttpSession} to identify the authenticated user (via userId, email, and userRole).
      * 2. Throws an {@link AuthenticationRequiredException} if no user session is established.
-     * 3. Queries {@link OrderRepository#findByUserId(int)} to fetch only orders belonging to the user.
+     * 3. If the user possesses administrator authority, queries {@link OrderRepository#findAll()} to return all orders across all users.
+     * 4. Otherwise, queries {@link OrderRepository#findByUserId(int)} to fetch only orders belonging to that specific user.
      *
      * @param httpSession The active HTTP session containing authenticated user attributes.
-     * @return A list of orders belonging to the authenticated user.
+     * @return A list of orders (all platform orders if admin, or user-specific orders if customer).
      * @throws AuthenticationRequiredException If user is not authenticated.
      */
     @Override
@@ -189,12 +190,19 @@ public class OrderServiceImpl implements OrderService {
             throw new AuthenticationRequiredException("Login required");
         }
 
-        // Extract user identity from session attributes
+        // Extract user identity and role from session attributes
         Object sessionUserId = httpSession.getAttribute("userId");
         String userEmail = (String) httpSession.getAttribute("userEmail");
+        String userRole = (String) httpSession.getAttribute("userRole");
 
         if (sessionUserId == null && userEmail == null) {
             throw new AuthenticationRequiredException("Login required");
+        }
+
+        // Administrators have full platform visibility: retrieve all orders placed across all users
+        boolean isAdministrator = userRole != null && userRole.equalsIgnoreCase("admin");
+        if (isAdministrator) {
+            return orderRepository.findAll();
         }
 
         int authenticatedUserId;

@@ -1,5 +1,6 @@
 package com.example.api.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -59,8 +60,10 @@ public class User {
     /**
      * User's account password.
      * Validated to ensure a non-blank value is provided during registration.
+     * Write-only to avoid exposing password in API responses.
      */
     @NotBlank(message = "Password is required")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     /**

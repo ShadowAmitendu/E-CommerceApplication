@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  * <p>What's happening here:
  * This class boots up the entire Spring framework environment. The {@link SpringBootApplication}
- * annotation activates auto-configuration, component scanning across the {@code com.example.api}
+ * annotation activates autoconfiguration, component scanning across the {@code com.example.api}
  * package hierarchy, and configuration property bindings.
  *
  * <p>What is done:
